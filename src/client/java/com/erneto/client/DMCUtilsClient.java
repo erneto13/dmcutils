@@ -2,6 +2,8 @@ package com.erneto.client;
 
 import com.erneto.client.config.Alert;
 import com.erneto.client.gui.MainMenu;
+import com.erneto.client.service.PHandler;
+import com.erneto.client.service.PLogger;
 import com.erneto.client.service.RHandler;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
@@ -18,15 +20,29 @@ import net.minecraft.util.Hand;
 
 public class DMCUtilsClient implements ClientModInitializer {
     private Alert config;
+    private PLogger logger;
+
 
     @Override
     public void onInitializeClient() {
         config = new Alert();
+        logger = new PLogger();
 
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             String content = message.getString();
-            if (content.contains("NUEVO REPORTE") && content.contains("Usuario reportado:")) {
-                RHandler.proccessChatMessage(content, config.isAutoTpEnabled());
+            if (content.contains("USUARIO SANCIONADO")) {
+                PHandler.PData data = PHandler.parse(content);
+                if (data != null && data.staff().equalsIgnoreCase("erneto13")) {
+                    logger.log(data);
+                }
+            }
+        });
+
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            String content = message.getString();
+            if (content.contains("USUARIO SANCIONADO")) {
+                PHandler.PData data = PHandler.parse(content);
+                if (data != null) logger.log(data);
             }
         });
 
