@@ -39,14 +39,6 @@ public class DMCUtilsClient implements ClientModInitializer {
         });
 
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            String content = message.getString();
-            if (content.contains("USUARIO SANCIONADO")) {
-                PHandler.PData data = PHandler.parse(content);
-                if (data != null) logger.log(data);
-            }
-        });
-
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             String content = message.getString().toLowerCase();
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc.player == null) return;
