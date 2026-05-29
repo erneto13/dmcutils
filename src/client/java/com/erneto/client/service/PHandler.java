@@ -16,12 +16,12 @@ public class PHandler {
 
     public static String resolveType(String raw) {
         return switch (raw.toLowerCase()) {
-            case "advertido"    -> "advertencia";
-            case "baneado de ip"-> "banip";
-            case "baneado"      -> "ban";
-            case "expulsado"    -> "expulsion";
-            case "muteado"      -> "mute";
-            default             -> raw;
+            case "advertido"     -> "advertencia";
+            case "baneado de ip" -> "banip";
+            case "baneado"       -> "ban";
+            case "expulsado"     -> "expulsion";
+            case "muteado"       -> "mute";
+            default              -> raw;
         };
     }
 
