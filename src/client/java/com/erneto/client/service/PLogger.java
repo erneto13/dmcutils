@@ -42,7 +42,7 @@ public class PLogger {
                 int code = conn.getResponseCode();
                 if (code != 201) {
                     client.inGameHud.setOverlayMessage(
-                            Text.literal("Supabase error" + code),
+                            Text.literal("error de supabase" + code),
                             false
                     );
                 }
@@ -52,7 +52,9 @@ public class PLogger {
                 );
                 conn.disconnect();
             } catch (Exception e) {
-                e.printStackTrace();
+                client.inGameHud.setOverlayMessage(
+                        Text.literal("error al registrar"), false
+                );
             }
         }).start();
     }
