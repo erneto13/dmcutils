@@ -25,8 +25,10 @@ public class MainMenu {
         ItemHelper.createGuiItem(inv, 12, Items.BOOK, "§7history: §f" + targetUser);
         ItemHelper.createGuiItem(inv, 13, Items.MAP, "§7dupeip: §f" + targetUser);
         ItemHelper.createGuiItem(inv, 14, Items.NETHERITE_HOE, "§7staff menu: §f" + targetUser);
+        ItemHelper.createGuiItem(inv, 15, Items.SPAWNER, "§7co l a:+item include:spawner t:1h " + targetUser);
+        ItemHelper.createGuiItem(inv, 16, Items.ENDER_CHEST, "§7ec: §f" + targetUser);
 
-        client.player.playSound(SoundEvents.BLOCK_CHEST_OPEN, 0.5f, 1.0f);
+        client.player.playSound(SoundEvents.BLOCK_VAULT_ACTIVATE, 0.5f, 2.0f);
 
         client.setScreen(new GenericContainerScreen(
                 new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X3, 0, client.player.getInventory(), inv, 3),
@@ -45,6 +47,8 @@ public class MainMenu {
                     case 12 -> "history " + targetUser;
                     case 13 -> "dupeip " + targetUser;
                     case 14 -> "staffmenu " + targetUser;
+                    case 15 -> "co l a:+item include:spawner t:1h " + targetUser;
+                    case 16 -> "ec " + targetUser;
                     default -> null;
                 };
 
