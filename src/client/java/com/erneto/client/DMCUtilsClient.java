@@ -4,7 +4,6 @@ import com.erneto.client.config.Alert;
 import com.erneto.client.gui.MainMenu;
 import com.erneto.client.service.PHandler;
 import com.erneto.client.service.PLogger;
-import com.erneto.client.service.RHandler;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
