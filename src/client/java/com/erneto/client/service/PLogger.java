@@ -1,5 +1,6 @@
 package com.erneto.client.service;
 
+import com.erneto.client.config.Alert;
 import com.google.gson.JsonObject;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
@@ -16,10 +17,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 public class PLogger {
-    private static final String SUPABASE_URL = "";
-    private static final String SUPABASE_KEY = "";
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
@@ -29,9 +29,11 @@ public class PLogger {
     });
 
     private final Path logFile;
+    private final Alert config;
 
-    public PLogger(Path logFile) {
+    public PLogger(Path logFile, Alert config) {
         this.logFile = logFile;
+        this.config = config;
     }
 
     public void log(PHandler.PData data) {
@@ -40,9 +42,23 @@ public class PLogger {
 
         EXECUTOR.submit(() -> {
             writeLocal(data);
-            if (!SUPABASE_URL.isEmpty()) {
-                postRemote(data, client);
+            if (config.hasSupabaseCredentials()) {
+                postRemote(data, client, config.getSupabaseUrl(), config.getSupabaseKey(), null);
             }
+        });
+    }
+
+    //Runs a test POST and reports result via the callback on the MC thread
+    public void testConnection(Consumer<String> onResult) {
+        if (!config.hasSupabaseCredentials()) {
+            MinecraftClient.getInstance().execute(() -> onResult.accept("§cFaltan credenciales"));
+            return;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        EXECUTOR.submit(() -> {
+            PHandler.PData dummy = new PHandler.PData("__test__", "test", "erneto13");
+            postRemote(dummy, client, config.getSupabaseUrl(), config.getSupabaseKey(), onResult);
         });
     }
 
@@ -57,12 +73,13 @@ public class PLogger {
         }
     }
 
-    private void postRemote(PHandler.PData data, MinecraftClient client) {
+    private void postRemote(PHandler.PData data, MinecraftClient client,
+                            String url, String key, Consumer<String> callback) {
         try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(SUPABASE_URL).openConnection();
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
             conn.setRequestMethod("POST");
-            conn.setRequestProperty("apikey", SUPABASE_KEY);
-            conn.setRequestProperty("Authorization", "Bearer " + SUPABASE_KEY);
+            conn.setRequestProperty("apikey", key);
+            conn.setRequestProperty("Authorization", "Bearer " + key);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Prefer", "return=minimal");
             conn.setConnectTimeout(5000);
@@ -84,16 +101,26 @@ public class PLogger {
             conn.disconnect();
 
             client.execute(() -> {
-                String msg = code == 201
+                String msg = (code == 201 || code == 200)
                         ? "§a✔ §fRegistrado: §e" + data.user() + " §7(" + data.type() + ")"
                         : "§c✘ §fSupabase error §7(" + code + ")";
-                client.inGameHud.setOverlayMessage(Text.literal(msg), false);
+
+                if (callback != null) {
+                    callback.accept(msg);
+                } else {
+                    client.inGameHud.setOverlayMessage(Text.literal(msg), false);
+                }
             });
 
         } catch (Exception e) {
-            client.execute(() ->
-                    client.inGameHud.setOverlayMessage(Text.literal("§c✘ §fError de conexión"), false)
-            );
+            client.execute(() -> {
+                String msg = "§c✘ §fError: " + e.getMessage();
+                if (callback != null) {
+                    callback.accept(msg);
+                } else {
+                    client.inGameHud.setOverlayMessage(Text.literal("§c✘ §fError de conexión"), false);
+                }
+            });
         }
     }
 }
