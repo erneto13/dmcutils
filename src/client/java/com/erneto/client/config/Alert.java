@@ -16,6 +16,8 @@ public class Alert {
     private List<String> alertWords = new ArrayList<>();
     private boolean autoTpEnabled = true;
     private boolean hudEnabled = true;
+    private String supabaseUrl = "";
+    private String supabaseKey = "";
     private final File configFile;
     private final Path logFile;
 
@@ -45,6 +47,12 @@ public class Alert {
                 if (json.has("hudEnabled")) {
                     hudEnabled = json.get("hudEnabled").getAsBoolean();
                 }
+                if (json.has("supabaseUrl")) {
+                    supabaseUrl = json.get("supabaseUrl").getAsString();
+                }
+                if (json.has("supabaseKey")) {
+                    supabaseKey = json.get("supabaseKey").getAsString();
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -57,6 +65,8 @@ public class Alert {
             json.add("words", GSON.toJsonTree(alertWords));
             json.addProperty("autoTp", autoTpEnabled);
             json.addProperty("hudEnabled", hudEnabled);
+            json.addProperty("supabaseUrl", supabaseUrl);
+            json.addProperty("supabaseKey", supabaseKey);
             GSON.toJson(json, writer);
         } catch (IOException e) {
             e.printStackTrace();
@@ -72,4 +82,14 @@ public class Alert {
     public List<String> getAlertWords() { return alertWords; }
 
     public Path getLogFile() { return logFile; }
+
+    public String getSupabaseUrl() { return supabaseUrl; }
+    public void setSupabaseUrl(String url) { this.supabaseUrl = url; }
+
+    public String getSupabaseKey() { return supabaseKey; }
+    public void setSupabaseKey(String key) { this.supabaseKey = key; }
+
+    public boolean hasSupabaseCredentials() {
+        return !supabaseUrl.isBlank() && !supabaseKey.isBlank();
+    }
 }
