@@ -35,7 +35,8 @@ public class DMCUtilsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         config = new Alert();
-        logger = new PLogger(config.getLogFile());
+        //Pass the full config so PLogger can read credentials dynamically
+        logger = new PLogger(config.getLogFile(), config);
         hud = new HudRenderer(config);
 
         hud.register();
@@ -55,7 +56,9 @@ public class DMCUtilsClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (configKey.wasPressed()) {
-                client.setScreen(new ConfigScreen(client.currentScreen, config));
+                ConfigScreen screen = new ConfigScreen(client.currentScreen, config);
+                screen.setLogger(logger);
+                client.setScreen(screen);
             }
         });
     }
@@ -161,7 +164,11 @@ public class DMCUtilsClient implements ClientModInitializer {
             dispatcher.register(ClientCommandManager.literal("dmcconfig")
                     .executes(ctx -> {
                         MinecraftClient mc = MinecraftClient.getInstance();
-                        mc.execute(() -> mc.setScreen(new ConfigScreen(null, config)));
+                        mc.execute(() -> {
+                            ConfigScreen screen = new ConfigScreen(null, config);
+                            screen.setLogger(logger);
+                            mc.setScreen(screen);
+                        });
                         return 1;
                     }));
         });
