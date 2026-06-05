@@ -1,6 +1,8 @@
 package com.erneto.client;
 
 import com.erneto.client.config.Alert;
+import com.erneto.client.core.CPCapture;
+import com.erneto.client.gui.CPAnalyzerScreen;
 import com.erneto.client.gui.ConfigScreen;
 import com.erneto.client.gui.MainMenu;
 import com.erneto.client.hud.HudRenderer;
@@ -32,6 +34,8 @@ public class DMCUtilsClient implements ClientModInitializer {
     private HudRenderer hud;
     private KeyBinding configKey;
 
+    private CPCapture cpCapture;
+
     @Override
     public void onInitializeClient() {
         config = new Alert();
@@ -40,6 +44,9 @@ public class DMCUtilsClient implements ClientModInitializer {
         hud = new HudRenderer(config);
 
         hud.register();
+
+        cpCapture = new CPCapture();
+
         registerKeybind();
         registerMessageEvents();
         registerEntityEvent();
@@ -59,6 +66,19 @@ public class DMCUtilsClient implements ClientModInitializer {
                 ConfigScreen screen = new ConfigScreen(client.currentScreen, config);
                 screen.setLogger(logger);
                 client.setScreen(screen);
+            }
+        });
+
+        KeyBinding analyzerKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.dmcutils.analyzer",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_J,
+                KeyBinding.Category.create(Identifier.of("dmcutils", "main"))
+        ));
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (analyzerKey.wasPressed()) {
+                client.setScreen(new CPAnalyzerScreen(client.currentScreen, cpCapture));
             }
         });
     }
@@ -86,6 +106,21 @@ public class DMCUtilsClient implements ClientModInitializer {
                     mc.inGameHud.setOverlayMessage(
                             Text.literal("§6§l[!] §eAlerta: §f" + word), false);
                     break;
+                }
+            }
+        });
+
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (!cpCapture.isRecording()) return;
+            boolean done = cpCapture.feedLine(message.getString());
+            if (done) {
+                MinecraftClient mc = MinecraftClient.getInstance();
+                if (mc.player != null) {
+                    mc.player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+                    mc.inGameHud.setOverlayMessage(
+                            Text.literal("§a✔ §fGrabación completa — §e" +
+                                    cpCapture.getEntries().size() + " §fentradas"), false);
+                    mc.execute(() -> mc.setScreen(new CPAnalyzerScreen(null, cpCapture)));
                 }
             }
         });
@@ -169,6 +204,13 @@ public class DMCUtilsClient implements ClientModInitializer {
                             screen.setLogger(logger);
                             mc.setScreen(screen);
                         });
+                        return 1;
+                    }));
+
+            dispatcher.register(ClientCommandManager.literal("dmcxray")
+                    .executes(ctx -> {
+                        MinecraftClient mc = MinecraftClient.getInstance();
+                        mc.execute(() -> mc.setScreen(new CPAnalyzerScreen(null, cpCapture)));
                         return 1;
                     }));
         });
