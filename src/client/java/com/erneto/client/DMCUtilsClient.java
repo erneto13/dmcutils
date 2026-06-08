@@ -54,11 +54,14 @@ public class DMCUtilsClient implements ClientModInitializer {
     }
 
     private void registerKeybind() {
+        //creamos la categoria una sola vez para evitar duplicados
+        var mainCategory = KeyBinding.Category.create(Identifier.of("dmcutils", "main"));
+
         configKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.dmcutils.config",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_K,
-                KeyBinding.Category.create(Identifier.of("dmcutils", "main"))
+                mainCategory
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -73,7 +76,7 @@ public class DMCUtilsClient implements ClientModInitializer {
                 "key.dmcutils.analyzer",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_J,
-                KeyBinding.Category.create(Identifier.of("dmcutils", "main"))
+                mainCategory
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
