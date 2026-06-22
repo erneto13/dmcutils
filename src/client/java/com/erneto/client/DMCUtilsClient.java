@@ -36,16 +36,16 @@ public class DMCUtilsClient implements ClientModInitializer {
 
     private CPCapture cpCapture;
 
+    private CPAnalyzerScreen analyzerScreen;
+
     @Override
     public void onInitializeClient() {
-        config = new Alert();
-        //Pass the full config so PLogger can read credentials dynamically
-        logger = new PLogger(config.getLogFile(), config);
-        hud = new HudRenderer(config);
+        config   = new Alert();
+        logger   = new PLogger(config.getLogFile(), config);
+        hud      = new HudRenderer(config);
+        cpCapture = new CPCapture();
 
         hud.register();
-
-        cpCapture = new CPCapture();
 
         registerKeybind();
         registerMessageEvents();
@@ -54,7 +54,6 @@ public class DMCUtilsClient implements ClientModInitializer {
     }
 
     private void registerKeybind() {
-        //creamos la categoria una sola vez para evitar duplicados
         var mainCategory = KeyBinding.Category.create(Identifier.of("dmcutils", "main"));
 
         configKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -81,19 +80,25 @@ public class DMCUtilsClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (analyzerKey.wasPressed()) {
-                client.setScreen(new CPAnalyzerScreen(client.currentScreen, cpCapture));
+                openAnalyzer(client, client.currentScreen);
             }
         });
     }
 
+    private void openAnalyzer(MinecraftClient client, net.minecraft.client.gui.screen.Screen parent) {
+        analyzerScreen = new CPAnalyzerScreen(parent, cpCapture);
+        client.setScreen(analyzerScreen);
+    }
+
     private void registerMessageEvents() {
+
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             String content = message.getString();
             if (content.contains("USUARIO SANCIONADO")) {
                 PHandler.PData data = PHandler.parse(content);
                 if (data != null && data.staff().equalsIgnoreCase("erneto13")) {
                     logger.log(data);
-                    hud.setLastSanction(data.user() + " §7→ " + data.type());
+                    hud.setLastSanction(data.user() + " → " + data.type());
                 }
             }
         });
@@ -114,19 +119,33 @@ public class DMCUtilsClient implements ClientModInitializer {
         });
 
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            String raw = message.getString();
+
+            if (analyzerScreen != null && analyzerScreen.isAutoRecord()
+                    && !cpCapture.isRecording()
+                    && looksLikeCoreProtectLine(raw)) {
+                analyzerScreen.triggerAutoRecord();
+            }
+
             if (!cpCapture.isRecording()) return;
-            boolean done = cpCapture.feedLine(message.getString());
+
+            boolean done = cpCapture.feedLine(raw);
             if (done) {
                 MinecraftClient mc = MinecraftClient.getInstance();
                 if (mc.player != null) {
                     mc.player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
                     mc.inGameHud.setOverlayMessage(
-                            Text.literal("§a✔ §fGrabación completa — §e" +
-                                    cpCapture.getEntries().size() + " §fentradas"), false);
-                    mc.execute(() -> mc.setScreen(new CPAnalyzerScreen(null, cpCapture)));
+                            Text.literal("§a✔ §fCaptura completa — §e"
+                                    + cpCapture.getEntries().size() + " §fentradas"), false);
                 }
+                mc.execute(() -> openAnalyzer(mc, null));
             }
         });
+    }
+
+    private boolean looksLikeCoreProtectLine(String raw) {
+        String clean = raw.replaceAll("§[0-9a-fk-or]", "");
+        return clean.matches(".*Hace\\s+[\\d.]+/[mhds]+.*reco.*");
     }
 
     private void registerEntityEvent() {
@@ -213,7 +232,7 @@ public class DMCUtilsClient implements ClientModInitializer {
             dispatcher.register(ClientCommandManager.literal("dmcxray")
                     .executes(ctx -> {
                         MinecraftClient mc = MinecraftClient.getInstance();
-                        mc.execute(() -> mc.setScreen(new CPAnalyzerScreen(null, cpCapture)));
+                        mc.execute(() -> openAnalyzer(mc, null));
                         return 1;
                     }));
         });

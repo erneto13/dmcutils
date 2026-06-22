@@ -10,21 +10,19 @@ public class CPCapture {
     private static final Pattern ENTRY_PATTERN = Pattern.compile(
             "Hace\\s+[\\d.]+/[mhds]+\\s+[+\\-]\\s+([a-zA-Z0-9_]{1,16})\\s+reco"
     );
-
     private static final Pattern COORD_PATTERN = Pattern.compile(
             "\\(x(-?\\d+)/y(-?\\d+)/z(-?\\d+)/([^)]+)\\)"
     );
-
     private static final Pattern TIME_PATTERN = Pattern.compile(
             "Hace\\s+([\\d.]+/[mhds]+)"
     );
-
     private static final Pattern PAGE_PATTERN = Pattern.compile(
             "P[aá]gina\\s+(\\d+)/(\\d+)"
     );
 
-    private boolean recording = false;
     private int targetPages = 10;
+
+    private boolean recording = false;
     private int currentPage = 0;
 
     private final List<CPEntry> entries = new ArrayList<>();
@@ -32,13 +30,23 @@ public class CPCapture {
     private String pendingUser = null;
     private String pendingTime = null;
 
-    public void startRecording(int pages) {
+    public int getTargetPages() { return targetPages; }
+
+    public void setTargetPages(int pages) {
+        this.targetPages = Math.max(1, pages);
+    }
+
+    public void startRecording() {
         recording = true;
-        targetPages = pages;
         currentPage = 0;
         entries.clear();
         pendingUser = null;
         pendingTime = null;
+    }
+
+    public void startRecording(int pages) {
+        setTargetPages(pages);
+        startRecording();
     }
 
     public void stopRecording() {
@@ -47,21 +55,11 @@ public class CPCapture {
         pendingTime = null;
     }
 
-    public boolean isRecording() {
-        return recording;
-    }
+    public boolean isRecording() { return recording; }
 
-    public int getCurrentPage() {
-        return currentPage;
-    }
+    public int getCurrentPage() { return currentPage; }
 
-    public int getTargetPages() {
-        return targetPages;
-    }
-
-    public List<CPEntry> getEntries() {
-        return List.copyOf(entries);
-    }
+    public List<CPEntry> getEntries() { return List.copyOf(entries); }
 
     public boolean feedLine(String raw) {
         if (!recording) return false;
@@ -76,9 +74,6 @@ public class CPCapture {
                 int z = Integer.parseInt(coord.group(3));
                 String world = coord.group(4);
                 entries.add(new CPEntry(pendingUser, x, y, z, world, pendingTime));
-                pendingUser = null;
-                pendingTime = null;
-                return false;
             }
             pendingUser = null;
             pendingTime = null;
@@ -95,7 +90,9 @@ public class CPCapture {
         Matcher page = PAGE_PATTERN.matcher(clean);
         if (page.find()) {
             currentPage = Integer.parseInt(page.group(1));
-            if (currentPage >= targetPages) {
+            int total = Integer.parseInt(page.group(2));
+
+            if (currentPage >= targetPages || currentPage >= total) {
                 stopRecording();
                 return true;
             }
