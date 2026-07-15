@@ -21,6 +21,9 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -49,6 +52,7 @@ public class DMCUtilsClient implements ClientModInitializer {
 
         registerKeybind();
         registerMessageEvents();
+        registerChatClickEvents();
         registerEntityEvent();
         registerCommands();
     }
@@ -148,6 +152,21 @@ public class DMCUtilsClient implements ClientModInitializer {
         return clean.matches(".*Hace\\s+[\\d.]+/[mhds]+.*reco.*");
     }
 
+    private void registerChatClickEvents() {
+        ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signedMessage, sender, params, receptionTimestamp) -> {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (sender == null || mc.player == null) return true;
+
+            String username = sender.name();
+            Style punishStyle = Style.EMPTY
+                    .withClickEvent(new ClickEvent.RunCommand("/dmcpunish " + username))
+                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("§b» §fAbrir menú de " + username)));
+
+            mc.inGameHud.getChatHud().addMessage(message.copy().fillStyle(punishStyle));
+            return false;
+        });
+    }
+
     private void registerEntityEvent() {
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (world.isClient()
@@ -235,6 +254,15 @@ public class DMCUtilsClient implements ClientModInitializer {
                         mc.execute(() -> openAnalyzer(mc, null));
                         return 1;
                     }));
+
+            dispatcher.register(ClientCommandManager.literal("dmcpunish")
+                    .then(ClientCommandManager.argument("user", StringArgumentType.string())
+                            .executes(ctx -> {
+                                String user = StringArgumentType.getString(ctx, "user");
+                                MinecraftClient mc = MinecraftClient.getInstance();
+                                mc.execute(() -> MainMenu.open(mc, user));
+                                return 1;
+                            })));
         });
     }
 }
