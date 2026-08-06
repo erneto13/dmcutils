@@ -12,44 +12,36 @@ import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainMenu {
 
-    private record SlotAction(String cmd, String label) {}
+    private record SlotAction(String cmd, String label) {
+    }
 
-    private static SlotAction[] buildActions(String user) {
-        return new SlotAction[]{
-            null,                                                                        //0
-            null,                                                                        //1
-            null,                                                                        //2
-            null,                                                                        //3
-            null,                                                                        //4
-            null,                                                                        //5
-            null,                                                                        //6
-            null,                                                                        //7
-            null,                                                                        //8
-            null,                                                                        //9 filler
-            new SlotAction("co l a:chat u:" + user,                  "chat"),            //10
-            new SlotAction("co l a:command u:" + user,               "commands"),        //11
-            new SlotAction("history " + user,                         "history"),         //12
-            new SlotAction("dupeip " + user,                          "dupeip"),          //13
-            new SlotAction("staffmenu " + user,                       "staff menu"),      //14
-            new SlotAction("co l a:+item include:spawner t:1h u:" + user, "spawner log"), //15
-            new SlotAction("ec " + user,                              "enderchest"),      //16
-            null,                                                                        //17 filler
-            null,                                                                        //18
-            null,                                                                        //19
-            new SlotAction("tp " + user,                              "teleport"),        //25
-            null,                                                                        //26
-        };
+    private static Map<Integer, SlotAction> buildActions(String user) {
+        Map<Integer, SlotAction> actions = new HashMap<>();
+        actions.put(10, new SlotAction("co l a:chat u:" + user, "chat"));
+        actions.put(11, new SlotAction("co l a:command u:" + user, "commands"));
+        actions.put(12, new SlotAction("history " + user, "history"));
+        actions.put(13, new SlotAction("dupeip " + user, "dupeip"));
+        actions.put(14, new SlotAction("staffmenu " + user, "staff menu"));
+        actions.put(15, new SlotAction("co l a:+item include:spawner t:1h u:" + user, "spawner log"));
+        actions.put(16, new SlotAction("ec " + user, "enderchest"));
+        actions.put(19, new SlotAction("punish " + user, "punish"));
+        actions.put(20, new SlotAction("invsee " + user, "invsee"));
+        actions.put(21, new SlotAction("balance " + user, "money"));
+        actions.put(25, new SlotAction("tp " + user, "teleport"));
+        return actions;
     }
 
     public static void open(MinecraftClient client, String targetUser) {
         if (client.player == null) return;
 
         SimpleInventory inv = new SimpleInventory(27);
-        SlotAction[] actions = buildActions(targetUser);
+        Map<Integer, SlotAction> actions = buildActions(targetUser);
 
         for (int i = 0; i < 27; i++) {
             ItemHelper.createGuiItem(inv, i, Items.GRAY_STAINED_GLASS_PANE, "§8 ");
@@ -70,6 +62,13 @@ public class MainMenu {
         ItemHelper.createGuiItem(inv, 16, Items.ENDER_CHEST,
                 "§b» §fenderchest", List.of("§7ec " + targetUser));
 
+        ItemHelper.createGuiItem(inv, 19, Items.IRON_SWORD,
+                "§c» §fpunish", List.of("§7punish " + targetUser, "§8click to execute"));
+        ItemHelper.createGuiItem(inv, 20, Items.CHEST,
+                "§b» §finvsee", List.of("§7invsee " + targetUser, "§8click to execute"));
+        ItemHelper.createGuiItem(inv, 21, Items.GOLD_INGOT,
+                "§b» §fmoney", List.of("§7balance " + targetUser, "§8click to execute"));
+
         ItemHelper.createGuiItem(inv, 25, Items.ENDER_PEARL,
                 "§a» §fteleport", List.of("§7tp " + targetUser, "§8click to execute"));
 
@@ -87,8 +86,7 @@ public class MainMenu {
                 if (slot == null || !slot.hasStack()) return;
                 if (slot.getStack().isOf(Items.GRAY_STAINED_GLASS_PANE)) return;
 
-                int idx = slot.getIndex();
-                SlotAction action = (idx >= 0 && idx < actions.length) ? actions[idx] : null;
+                SlotAction action = actions.get(slot.getIndex());
                 if (action == null) return;
 
                 assert client != null;
