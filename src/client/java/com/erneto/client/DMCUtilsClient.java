@@ -2,10 +2,14 @@ package com.erneto.client;
 
 import com.erneto.client.config.Alert;
 import com.erneto.client.core.CPCapture;
+import com.erneto.client.core.CPTimelineStore;
 import com.erneto.client.gui.CPAnalyzerScreen;
 import com.erneto.client.gui.ConfigScreen;
 import com.erneto.client.gui.MainMenu;
+import com.erneto.client.gui.PlayerTimelineScreen;
+import com.erneto.client.hud.CPHeatmapRenderer;
 import com.erneto.client.hud.HudRenderer;
+import com.erneto.client.network.CPNetworkManager;
 import com.erneto.client.service.PHandler;
 import com.erneto.client.service.PLogger;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -43,12 +47,19 @@ public class DMCUtilsClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        config   = new Alert();
-        logger   = new PLogger(config.getLogFile(), config);
-        hud      = new HudRenderer(config);
+        config = new Alert();
+        logger = new PLogger(config.getLogFile(), config);
+        hud = new HudRenderer(config);
         cpCapture = new CPCapture();
 
         hud.register();
+
+        timelineStore = new CPTimelineStore();
+        networkManager = new CPNetworkManager(timelineStore);
+        heatmap = new CPHeatmapRenderer(timelineStore);
+
+        networkManager.init();
+        heatmap.register();
 
         registerKeybind();
         registerMessageEvents();
@@ -263,6 +274,23 @@ public class DMCUtilsClient implements ClientModInitializer {
                                 mc.execute(() -> MainMenu.open(mc, user));
                                 return 1;
                             })));
+
+            dispatcher.register(ClientCommandManager.literal("dmctimeline")
+                    .then(ClientCommandManager.argument("user", StringArgumentType.string())
+                            .executes(ctx -> {
+                                String user = StringArgumentType.getString(ctx, "user");
+                                MinecraftClient mc = MinecraftClient.getInstance();
+                                mc.execute(() -> mc.setScreen(new PlayerTimelineScreen(mc.currentScreen, timelineStore, user)));
+                                return 1;
+                            })));
+
+            dispatcher.register(ClientCommandManager.literal("dmcheatmap")
+                    .executes(ctx -> {
+                        heatmap.toggle();
+                        ctx.getSource().sendFeedback(Text.literal("§8[dmc] §fHeatmap: " + (heatmap.isEnabled() ? "§aON" : "§cOFF")));
+                        return 1;
+                    }));
+
         });
     }
 }
