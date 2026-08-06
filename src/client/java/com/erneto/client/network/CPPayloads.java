@@ -2,6 +2,7 @@ package com.erneto.client.network;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
@@ -13,9 +14,9 @@ public final class CPPayloads {
     public record HandshakeC2S(String modVersion, String modId, int protocol) implements CustomPayload {
         public static final Id<HandshakeC2S> ID = new Id<>(Identifier.of("coreprotect", "handshake"));
         public static final PacketCodec<ByteBuf, HandshakeC2S> CODEC = PacketCodec.tuple(
-                PacketCodec.STRING, HandshakeC2S::modVersion,
-                PacketCodec.STRING, HandshakeC2S::modId,
-                PacketCodec.INTEGER, HandshakeC2S::protocol,
+                PacketCodecs.STRING, HandshakeC2S::modVersion,
+                PacketCodecs.STRING, HandshakeC2S::modId,
+                PacketCodecs.INTEGER, HandshakeC2S::protocol,
                 HandshakeC2S::new
         );
 

@@ -45,6 +45,10 @@ public class DMCUtilsClient implements ClientModInitializer {
 
     private CPAnalyzerScreen analyzerScreen;
 
+    private CPTimelineStore timelineStore;
+    private CPNetworkManager networkManager;
+    private CPHeatmapRenderer heatmap;
+
     @Override
     public void onInitializeClient() {
         config = new Alert();
