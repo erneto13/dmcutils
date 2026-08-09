@@ -9,12 +9,14 @@ import com.erneto.client.gui.ChatWatchScreen;
 import com.erneto.client.gui.ConfigScreen;
 import com.erneto.client.gui.MainMenu;
 import com.erneto.client.gui.PlayerTimelineScreen;
+import com.erneto.client.gui.ShortcutScreen;
 import com.erneto.client.hud.CPHeatmapRenderer;
 import com.erneto.client.hud.HudRenderer;
 import com.erneto.client.network.CPNetworkManager;
 import com.erneto.client.service.ChatWatchLog;
 import com.erneto.client.service.PHandler;
 import com.erneto.client.service.PLogger;
+import com.erneto.client.service.ShortcutStore;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -22,6 +24,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
@@ -74,6 +77,7 @@ public class DMCUtilsClient implements ClientModInitializer {
         registerPendingScreenFlush();
         registerMessageEvents();
         registerChatClickEvents();
+        registerCommandShortcuts();
         registerEntityEvent();
         registerCommands();
     }
@@ -217,6 +221,18 @@ public class DMCUtilsClient implements ClientModInitializer {
                 Text.literal("§6§l[!] §e" + username + " §7» §f" + reason), false);
     }
 
+    private void registerCommandShortcuts() {
+        ClientSendMessageEvents.MODIFY_COMMAND.register(command -> {
+            int spaceIdx = command.indexOf(' ');
+            String alias = spaceIdx == -1 ? command : command.substring(0, spaceIdx);
+            String rest = spaceIdx == -1 ? "" : command.substring(spaceIdx + 1);
+
+            return ShortcutStore.findByAlias(alias)
+                    .map(s -> rest.isEmpty() ? s.command() : s.command() + " " + rest)
+                    .orElse(command);
+        });
+    }
+
     private void registerEntityEvent() {
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (world.isClient()
@@ -327,6 +343,13 @@ public class DMCUtilsClient implements ClientModInitializer {
                     .executes(ctx -> {
                         MinecraftClient mc = MinecraftClient.getInstance();
                         queueScreen(() -> mc.setScreen(new ChatWatchScreen(mc.currentScreen, config)));
+                        return 1;
+                    }));
+
+            dispatcher.register(ClientCommandManager.literal("dmcshortcut")
+                    .executes(ctx -> {
+                        MinecraftClient mc = MinecraftClient.getInstance();
+                        queueScreen(() -> mc.setScreen(new ShortcutScreen(mc.currentScreen)));
                         return 1;
                     }));
 
