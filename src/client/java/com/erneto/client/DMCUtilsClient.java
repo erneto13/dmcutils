@@ -3,13 +3,16 @@ package com.erneto.client;
 import com.erneto.client.config.Alert;
 import com.erneto.client.core.CPCapture;
 import com.erneto.client.core.CPTimelineStore;
+import com.erneto.client.core.ChatBuffer;
 import com.erneto.client.gui.CPAnalyzerScreen;
+import com.erneto.client.gui.ChatWatchScreen;
 import com.erneto.client.gui.ConfigScreen;
 import com.erneto.client.gui.MainMenu;
 import com.erneto.client.gui.PlayerTimelineScreen;
 import com.erneto.client.hud.CPHeatmapRenderer;
 import com.erneto.client.hud.HudRenderer;
 import com.erneto.client.network.CPNetworkManager;
+import com.erneto.client.service.ChatWatchLog;
 import com.erneto.client.service.PHandler;
 import com.erneto.client.service.PLogger;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -140,21 +143,6 @@ public class DMCUtilsClient implements ClientModInitializer {
         });
 
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            String content = message.getString().toLowerCase();
-            MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc.player == null) return;
-
-            for (String word : config.getAlertWords()) {
-                if (content.contains(word.toLowerCase())) {
-                    mc.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BANJO.value(), 2.0f, 1.0f);
-                    mc.inGameHud.setOverlayMessage(
-                            Text.literal("§6§l[!] §eAlerta: §f" + word), false);
-                    break;
-                }
-            }
-        });
-
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             String raw = message.getString();
 
             if (analyzerScreen != null && analyzerScreen.isAutoRecord()
@@ -190,6 +178,8 @@ public class DMCUtilsClient implements ClientModInitializer {
             if (sender == null || mc.player == null) return true;
 
             String username = sender.name();
+            checkChatWatch(mc, username, signedMessage.getContent().getString());
+
             Style punishStyle = Style.EMPTY
                     .withClickEvent(new ClickEvent.RunCommand("/dmcpunish " + username))
                     .withHoverEvent(new HoverEvent.ShowText(Text.literal("§b» §fAbrir menú de " + username)));
@@ -197,6 +187,34 @@ public class DMCUtilsClient implements ClientModInitializer {
             mc.inGameHud.getChatHud().addMessage(message.copy().fillStyle(punishStyle));
             return false;
         });
+    }
+
+    private void checkChatWatch(MinecraftClient mc, String username, String content) {
+        if (mc.player.getGameProfile().name().equalsIgnoreCase(username)) return;
+        if (config.isExempt(username)) return;
+
+        String lower = content.toLowerCase();
+
+        for (String word : config.getAlertWords()) {
+            if (lower.contains(word.toLowerCase())) {
+                ChatWatchLog.record(username, "PALABRA", word);
+                notifyChatWatch(mc, username, "palabra clave: " + word);
+                return;
+            }
+        }
+
+        long windowMs = config.getRepeatWindowSeconds() * 1000L;
+        int repeats = ChatBuffer.trackRepeat(username, content, windowMs);
+        if (repeats >= config.getRepeatThreshold()) {
+            ChatWatchLog.record(username, "REPETICION", repeats + "x: " + content);
+            notifyChatWatch(mc, username, "mensaje repetido x" + repeats);
+        }
+    }
+
+    private void notifyChatWatch(MinecraftClient mc, String username, String reason) {
+        mc.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BANJO.value(), 2.0f, 1.0f);
+        mc.inGameHud.setOverlayMessage(
+                Text.literal("§6§l[!] §e" + username + " §7» §f" + reason), false);
     }
 
     private void registerEntityEvent() {
@@ -304,6 +322,13 @@ public class DMCUtilsClient implements ClientModInitializer {
                                 queueScreen(() -> mc.setScreen(new PlayerTimelineScreen(mc.currentScreen, timelineStore, user)));
                                 return 1;
                             })));
+
+            dispatcher.register(ClientCommandManager.literal("dmcwatch")
+                    .executes(ctx -> {
+                        MinecraftClient mc = MinecraftClient.getInstance();
+                        queueScreen(() -> mc.setScreen(new ChatWatchScreen(mc.currentScreen, config)));
+                        return 1;
+                    }));
 
             dispatcher.register(ClientCommandManager.literal("dmcheatmap")
                     .executes(ctx -> {
