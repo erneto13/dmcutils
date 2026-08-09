@@ -49,6 +49,8 @@ public class DMCUtilsClient implements ClientModInitializer {
     private CPNetworkManager networkManager;
     private CPHeatmapRenderer heatmap;
 
+    private Runnable pendingScreenAction;
+
     @Override
     public void onInitializeClient() {
         config = new Alert();
@@ -66,10 +68,25 @@ public class DMCUtilsClient implements ClientModInitializer {
         heatmap.register();
 
         registerKeybind();
+        registerPendingScreenFlush();
         registerMessageEvents();
         registerChatClickEvents();
         registerEntityEvent();
         registerCommands();
+    }
+
+    private void registerPendingScreenFlush() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (pendingScreenAction != null) {
+                Runnable action = pendingScreenAction;
+                pendingScreenAction = null;
+                action.run();
+            }
+        });
+    }
+
+    private void queueScreen(Runnable action) {
+        pendingScreenAction = action;
     }
 
     private void registerKeybind() {
@@ -255,7 +272,7 @@ public class DMCUtilsClient implements ClientModInitializer {
             dispatcher.register(ClientCommandManager.literal("dmcconfig")
                     .executes(ctx -> {
                         MinecraftClient mc = MinecraftClient.getInstance();
-                        mc.execute(() -> {
+                        queueScreen(() -> {
                             ConfigScreen screen = new ConfigScreen(null, config);
                             screen.setLogger(logger);
                             mc.setScreen(screen);
@@ -266,7 +283,7 @@ public class DMCUtilsClient implements ClientModInitializer {
             dispatcher.register(ClientCommandManager.literal("dmcxray")
                     .executes(ctx -> {
                         MinecraftClient mc = MinecraftClient.getInstance();
-                        mc.execute(() -> openAnalyzer(mc, null));
+                        queueScreen(() -> openAnalyzer(mc, null));
                         return 1;
                     }));
 
@@ -275,7 +292,7 @@ public class DMCUtilsClient implements ClientModInitializer {
                             .executes(ctx -> {
                                 String user = StringArgumentType.getString(ctx, "user");
                                 MinecraftClient mc = MinecraftClient.getInstance();
-                                mc.execute(() -> MainMenu.open(mc, user));
+                                queueScreen(() -> MainMenu.open(mc, user));
                                 return 1;
                             })));
 
@@ -284,7 +301,7 @@ public class DMCUtilsClient implements ClientModInitializer {
                             .executes(ctx -> {
                                 String user = StringArgumentType.getString(ctx, "user");
                                 MinecraftClient mc = MinecraftClient.getInstance();
-                                mc.execute(() -> mc.setScreen(new PlayerTimelineScreen(mc.currentScreen, timelineStore, user)));
+                                queueScreen(() -> mc.setScreen(new PlayerTimelineScreen(mc.currentScreen, timelineStore, user)));
                                 return 1;
                             })));
 
